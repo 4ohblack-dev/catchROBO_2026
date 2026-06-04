@@ -10,6 +10,48 @@ int16_t loopCount = 0;
 uint16_t lastRawAngle = 0;
 bool isfirstRead = true;
 
+int motorpin1 = 13;
+int motorpwm1 = 12;
+int pwmch1 = 0;
+
+class MotorDrive{
+public:
+  int dirpin;
+  int motorpwm;
+  int pwmch;
+
+  MotorDrive(int pin1,int pin2,int ch){
+    dirpin=pin1;
+    motorpwm1=pin2;
+    pwmch=ch;
+  }
+
+  void setup(){
+    pinMode(dirpin,OUTPUT);
+    pinMode(motorpwm,OUTPUT);
+    ledcAttachPin(motorpwm,pwmch);
+    ledcSetup(pwmch,12800,8);
+  }
+  void drive(int val){
+    val = constrain(val,-255,255);
+    if(val<0){
+      digitalWrite(dirpin,HIGH);
+      ledcWrite(pwmch,-val);
+    }
+    else if(val>0){
+      digitalWrite(dirpin,LOW);
+      ledcWrite(pwmch,val);
+    }
+    else{
+      digitalWrite(dirpin,LOW);
+      ledcWrite(pwmch,0);
+    }
+  }
+};
+
+MotorDrive motorA{motorpin1,motorpwm1,pwmch1};
+
+
 void setup(){
   Wire.begin(21,22);
   Serial.begin(115200);

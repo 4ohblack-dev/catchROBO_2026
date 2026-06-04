@@ -1,7 +1,10 @@
 #include <Arduino.h>
 #include<Wire.h>
 #include<Adafruit_AS5600.h>
+#include<ESP32Servo.h>
+#include<Adafruit_PWMServoDriver.h>
 
+Adafruit_PWMServoDriver servoDriver = Adafruit_PWMServoDriver(0x40);
 Adafruit_AS5600 as5600;
 int16_t loopCount = 0;
 uint16_t lastRawAngle = 0;
@@ -10,6 +13,8 @@ bool isfirstRead = true;
 void setup(){
   Wire.begin(21,22);
   Serial.begin(115200);
+  servoDriver.begin();
+  servoDriver.setPWMFreq(50);
 
   if (as5600.begin()==false){
     Serial.println("AS5600 is not detected");
@@ -45,8 +50,7 @@ void loop(){
 
   int32_t totalsteps=((int32_t)loopCount*4096)+currentRawAngle;
   float totalDegree = totalsteps*360/4096;
-
-
-  float degrees = currentRawAngle*360/4095;
+  float degrees = currentRawAngle*360/4096;
+  Serial.println(degrees);
   delay(5);
 }

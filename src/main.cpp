@@ -140,7 +140,7 @@ calcMoved calcuratedY(double dy,double theta){
 
 float getCulculatedDeg(int id){
   uint16_t currentRawAngle = as5600[id]->getRawAngle();//連続して回るようなところ
-  if(isfirstRead){
+  if(isfirstRead[id]){
     lastRawAngle[id]=currentRawAngle;
     isfirstRead[id]=false;
   }
@@ -150,8 +150,8 @@ float getCulculatedDeg(int id){
 
   lastRawAngle[id]=currentRawAngle;
 
-  int32_t totalsteps=((int32_t)loopCount*4096)+currentRawAngle;
-  float totalDegree = totalsteps*360/4096;
+  int32_t totalsteps=((int32_t)loopCount[id]*4096)+currentRawAngle;
+  float totalDegree = totalsteps*360.0/4096.0;
   return totalDegree;//度数表記で返す
 }
 

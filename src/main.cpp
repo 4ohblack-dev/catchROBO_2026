@@ -21,6 +21,10 @@ const int length_pin = 25;
 const int length_pwm = 26;
 const int length_ch =1;
 
+const int height_pin = 17;
+const int height_pwm = 18;
+const int height_ch = 2;
+
 int theta = 0;
 float L1 = 100;
 float h = 100;
@@ -124,8 +128,10 @@ void setup(){
   servoDriver.setPWMFreq(50);
   MotorDrive theta_M{theta_pin,theta_pwm,theta_ch};
   MotorDrive length_M{length_pin,length_pwm,length_ch};
+  MotorDrive height_M{height_pin,height_pwm,height_ch};
   theta_M.setup();
   length_M.setup();
+  height_M,setup();
 
   if (as5600.begin()==false){
     Serial.println("AS5600 is not detected");

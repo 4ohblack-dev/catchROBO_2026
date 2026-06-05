@@ -131,7 +131,7 @@ void setup(){
   MotorDrive height_M{height_pin,height_pwm,height_ch};
   theta_M.setup();
   length_M.setup();
-  height_M,setup();
+  height_M.setup();
 
   if (as5600.begin()==false){
     Serial.println("AS5600 is not detected");

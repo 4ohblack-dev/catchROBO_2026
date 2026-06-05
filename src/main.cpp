@@ -8,6 +8,7 @@
 
 Adafruit_PWMServoDriver servoDriver = Adafruit_PWMServoDriver(0x40);
 Adafruit_AS5600 as5600;
+
 int16_t loopCount = 0;
 uint16_t lastRawAngle = 0;
 bool isfirstRead = true;
@@ -15,6 +16,11 @@ bool isfirstRead = true;
 int motorpin1 = 13;
 int motorpwm1 = 12;
 int pwmch1 = 0;
+
+int theta = 0;
+float L1 = 100;
+float h = 100;
+
 
 class MotorDrive{
 public:
@@ -24,7 +30,7 @@ public:
 
   MotorDrive(int pin1,int pin2,int ch){
     dirpin=pin1;
-    motorpwm1=pin2;
+    motorpwm=pin2;
     pwmch=ch;
   }
 
@@ -52,10 +58,6 @@ public:
 };
 
 
-int theta = 0;
-float L1 = 100;
-float h = 100;
-
 struct calcMoved{
   double d_theta;
   double d_length;
@@ -64,7 +66,7 @@ struct calcMoved{
 
 //今のthetaとL1を取得する関数、更新する関数が必要
 
-calcMoved calcuratedX(double dx,double theta){
+calcMoved calcuratedy(double dy,double theta){
   calcMoved result={0.0,0.0,false};
   if(theta>90.0 || theta<0.0){
     return result;//false
@@ -76,7 +78,30 @@ calcMoved calcuratedX(double dx,double theta){
         result.success = true;
         return result;//とりあえずtrue
   }
-  result.d_theta= std::atan2((dx*std::sin(theta)),(L1 + dx*std::cos(theta)));
+  result.d_theta= std::atan2((dy*std::sin(theta)),(L1 + dy*std::cos(theta)));
+  double tan1 = std::tan(result.d_theta);
+  double tan2 = std::tan(theta-result.d_theta);
+
+  if(std::abs(tan1)<1e-6 || std::abs(tan2)<1e-6){
+    return result;//false
+  }
+  result.d_length=L1*(std::sin(theta)/tan1 + std::sin(theta)/tan2 -1);
+  result.success = true;
+  return result;//true,戻り値はラジアンになってる
+}
+calcMoved calcuratedY(double dy,double theta){
+  calcMoved result={0.0,0.0,false};
+  if(theta>90.0 || theta<0.0){
+    return result;//false
+  }
+  theta= theta*PI/180.0;
+  if (theta == 0.0) {
+        result.d_theta = 0.0;
+        result.d_length = 0.0;//要変更
+        result.success = true;
+        return result;//とりあえずtrue
+  }
+  result.d_theta= std::atan2((dy*std::sin(theta)),(L1 + dy*std::cos(theta)));
   double tan1 = std::tan(result.d_theta);
   double tan2 = std::tan(theta-result.d_theta);
 
@@ -88,13 +113,13 @@ calcMoved calcuratedX(double dx,double theta){
   return result;//true,戻り値はラジアンになってる
 }
 
-MotorDrive motorA{motorpin1,motorpwm1,pwmch1};
-
 void setup(){
   Wire.begin(21,22);
   Serial.begin(115200);
   servoDriver.begin();
   servoDriver.setPWMFreq(50);
+  MotorDrive motorA{motorpin1,motorpwm1,pwmch1};
+  motorA.setup();
 
   if (as5600.begin()==false){
     Serial.println("AS5600 is not detected");

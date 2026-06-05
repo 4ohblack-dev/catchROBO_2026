@@ -6,24 +6,38 @@
 #include<cmath>
 #include<iostream>
 
-Adafruit_PWMServoDriver servoDriver = Adafruit_PWMServoDriver(0x40);
-Adafruit_AS5600 as5600;
+#define SDA2_pin 25
+#define SCL2_pin 32
 
-int16_t loopCount = 0;
-uint16_t lastRawAngle = 0;
-bool isfirstRead = true;
+TwoWire I2C_1 = TwoWire(0);
+TwoWire I2C_2 = TwoWire(1);
+
+Adafruit_PWMServoDriver servoDriver = Adafruit_PWMServoDriver(0x40);
+Adafruit_AS5600 theta_as5600,length_as5600;
+Adafruit_AS5600* as5600[] = { &theta_as5600, &length_as5600 };
+const int the_enc=0;
+const int len_enc=1;
+
+const int theta_as=0;
+const int length_as=1;
+
+int16_t loopCount[2] = {0, 0};
+uint16_t lastRawAngle[2] = {0, 0};
+bool isfirstRead[2] = {true, true};
 
 const int theta_pin = 13;
 const int theta_pwm = 12;
 const int theta_ch = 0;
 
-const int length_pin = 25;
+const int length_pin = 27;
 const int length_pwm = 26;
 const int length_ch =1;
 
 const int height_pin = 17;
 const int height_pwm = 18;
 const int height_ch = 2;
+
+//プルアップ抵抗をつける（4.7kΩ〜10kΩ）
 
 int theta = 0;
 float L1 = 100;
@@ -65,6 +79,9 @@ public:
   }
 };
 
+MotorDrive theta_M{theta_pin,theta_pwm,theta_ch};
+MotorDrive length_M{length_pin,length_pwm,length_ch};
+MotorDrive height_M{height_pin,height_pwm,height_ch};
 
 struct calcMoved{
   double d_theta;
@@ -121,31 +138,58 @@ calcMoved calcuratedY(double dy,double theta){
   return result;//true,戻り値はラジアンになってる
 }
 
+float getCulculatedDeg(int id){
+  uint16_t currentRawAngle = as5600[id]->getRawAngle();//連続して回るようなところ
+  if(isfirstRead){
+    lastRawAngle[id]=currentRawAngle;
+    isfirstRead[id]=false;
+  }
+  int16_t diff = currentRawAngle - lastRawAngle[id];
+  if(diff<-2048)loopCount[id]++;
+  else if (diff>2048)loopCount[id]--;
+
+  lastRawAngle[id]=currentRawAngle;
+
+  int32_t totalsteps=((int32_t)loopCount*4096)+currentRawAngle;
+  float totalDegree = totalsteps*360/4096;
+  return totalDegree;//度数表記で返す
+}
+
 void setup(){
-  Wire.begin(21,22);
   Serial.begin(115200);
+  I2C_1.begin(21,22,400000);
+  I2C_2.begin(SDA2_pin,SCL2_pin,400000);
   servoDriver.begin();
   servoDriver.setPWMFreq(50);
-  MotorDrive theta_M{theta_pin,theta_pwm,theta_ch};
-  MotorDrive length_M{length_pin,length_pwm,length_ch};
-  MotorDrive height_M{height_pin,height_pwm,height_ch};
   theta_M.setup();
   length_M.setup();
   height_M.setup();
 
-  if (as5600.begin()==false){
-    Serial.println("AS5600 is not detected");
+  if (as5600[the_enc]->begin(AS5600_DEFAULT_ADDR,&I2C_1) == false) {
+    Serial.println("AS5600 (Theta) is not detected");
+  } else {
+    Serial.println("AS5600 (Theta) is detected");
   }
-  Serial.println("AS5600 is detected");
 
-  if(as5600.isMagnetDetected()){
-    Serial.println("good magnet_Position");
+  if (as5600[len_enc]->begin(AS5600_DEFAULT_ADDR,&I2C_2) == false) {
+    Serial.println("AS5600 (Length) is not detected");
+  } else {
+    Serial.println("AS5600 (Length) is detected");
   }
-  if(as5600.isAGCminGainOverflow()){
-    Serial.println("magnet is too strong");
-  }
-  if(as5600.isAGCmaxGainOverflow()){
-    Serial.println("magnet is too weak");
+
+  for(int id=0;id<2;id++){
+    if(as5600[id]->isMagnetDetected()){
+      Serial.print(id);
+      Serial.println("good magnet_Position");
+    }
+    else if(as5600[id]->isAGCminGainOverflow()){
+      Serial.print(id);
+      Serial.println("magnet is too strong");
+    }
+    else if(as5600[id]->isAGCmaxGainOverflow()){
+      Serial.print(id);
+      Serial.println("magnet is too weak");
+    }
   }
 
   Serial.println("as5600 PERFECT");
@@ -153,20 +197,12 @@ void setup(){
 }
 
 void loop(){
-  uint16_t currentRawAngle = as5600.getRawAngle();//連続して回るようなところ
-  if(isfirstRead){
-    lastRawAngle=currentRawAngle;
-    isfirstRead=false;
-  }
-  int16_t diff = currentRawAngle - lastRawAngle;
-  if(diff<-2048)loopCount++;
-  else if (diff>2048)loopCount--;
+  float theta_degree=getCulculatedDeg(the_enc);
+  float length_degree=getCulculatedDeg(len_enc);
 
-  lastRawAngle=currentRawAngle;
+  // シリアル出力
+  Serial.print("Theta: ");   Serial.print(theta_degree);
+  Serial.print("\tLength: "); Serial.println(length_degree);
 
-  int32_t totalsteps=((int32_t)loopCount*4096)+currentRawAngle;
-  float totalDegree = totalsteps*360/4096;
-  float degrees = currentRawAngle*360/4096;
-  Serial.println(degrees);
   delay(5);
 }

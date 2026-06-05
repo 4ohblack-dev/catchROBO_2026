@@ -33,9 +33,9 @@ const int length_pin = 27;
 const int length_pwm = 26;
 const int length_ch =1;
 
-const int height_pin = 17;
-const int height_pwm = 18;
-const int height_ch = 2;
+const int height_pin = 17;//z方向は360サーボ
+const int hand_pin = 18;
+
 
 //プルアップ抵抗をつける（4.7kΩ〜10kΩ）
 
@@ -81,7 +81,7 @@ public:
 
 MotorDrive theta_M{theta_pin,theta_pwm,theta_ch};
 MotorDrive length_M{length_pin,length_pwm,length_ch};
-MotorDrive height_M{height_pin,height_pwm,height_ch};
+Servo height_M, hand_servo;
 
 struct calcMoved{
   double d_theta;
@@ -163,7 +163,8 @@ void setup(){
   servoDriver.setPWMFreq(50);
   theta_M.setup();
   length_M.setup();
-  height_M.setup();
+  height_M.attach(height_pin);
+  hand_servo.attach(hand_pin);
 
   if (as5600[the_enc]->begin(AS5600_DEFAULT_ADDR,&I2C_1) == false) {
     Serial.println("AS5600 (Theta) is not detected");
@@ -193,6 +194,10 @@ void setup(){
   }
 
   Serial.println("as5600 PERFECT");
+  theta_M.drive(0);
+  length_M.drive(0);
+  height_M.write(90);
+  hand_servo.write(90);
   delay(100);
 }
 

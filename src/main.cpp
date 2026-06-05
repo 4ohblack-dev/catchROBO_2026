@@ -1,8 +1,10 @@
-#include <Arduino.h>
+#include<Arduino.h>
 #include<Wire.h>
 #include<Adafruit_AS5600.h>
 #include<ESP32Servo.h>
 #include<Adafruit_PWMServoDriver.h>
+#include<cmath>
+#include<iostream>
 
 Adafruit_PWMServoDriver servoDriver = Adafruit_PWMServoDriver(0x40);
 Adafruit_AS5600 as5600;
@@ -49,8 +51,44 @@ public:
   }
 };
 
-MotorDrive motorA{motorpin1,motorpwm1,pwmch1};
 
+int theta = 0;
+float L1 = 100;
+float h = 100;
+
+struct calcMoved{
+  double d_theta;
+  double d_length;
+  bool success;
+};
+
+//今のthetaとL1を取得する関数、更新する関数が必要
+
+calcMoved calcuratedX(double dx,double theta){
+  calcMoved result={0.0,0.0,false};
+  if(theta>90.0 || theta<0.0){
+    return result;//false
+  }
+  theta= theta*PI/180.0;
+  if (theta == 0.0) {
+        result.d_theta = 0.0;
+        result.d_length = 0.0;//要変更
+        result.success = true;
+        return result;//とりあえずtrue
+  }
+  result.d_theta= std::atan2((dx*std::sin(theta)),(L1 + dx*std::cos(theta)));
+  double tan1 = std::tan(result.d_theta);
+  double tan2 = std::tan(theta-result.d_theta);
+
+  if(std::abs(tan1)<1e-6 || std::abs(tan2)<1e-6){
+    return result;//false
+  }
+  result.d_length=L1*(std::sin(theta)/tan1 + std::sin(theta)/tan2 -1);
+  result.success = true;
+  return result;//true,戻り値はラジアンになってる
+}
+
+MotorDrive motorA{motorpin1,motorpwm1,pwmch1};
 
 void setup(){
   Wire.begin(21,22);
@@ -76,7 +114,6 @@ void setup(){
   Serial.println("as5600 PERFECT");
   delay(100);
 }
-
 
 void loop(){
   uint16_t currentRawAngle = as5600.getRawAngle();//連続して回るようなところ

@@ -13,9 +13,13 @@ int16_t loopCount = 0;
 uint16_t lastRawAngle = 0;
 bool isfirstRead = true;
 
-int motorpin1 = 13;
-int motorpwm1 = 12;
-int pwmch1 = 0;
+const int theta_pin = 13;
+const int theta_pwm = 12;
+const int theta_ch = 0;
+
+const int length_pin = 25;
+const int length_pwm = 26;
+const int length_ch =1;
 
 int theta = 0;
 float L1 = 100;
@@ -118,14 +122,16 @@ void setup(){
   Serial.begin(115200);
   servoDriver.begin();
   servoDriver.setPWMFreq(50);
-  MotorDrive motorA{motorpin1,motorpwm1,pwmch1};
-  motorA.setup();
+  MotorDrive theta_M{theta_pin,theta_pwm,theta_ch};
+  MotorDrive length_M{length_pin,length_pwm,length_ch};
+  theta_M.setup();
+  length_M.setup();
 
   if (as5600.begin()==false){
     Serial.println("AS5600 is not detected");
   }
-
   Serial.println("AS5600 is detected");
+
   if(as5600.isMagnetDetected()){
     Serial.println("good magnet_Position");
   }

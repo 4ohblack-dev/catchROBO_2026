@@ -205,6 +205,27 @@ void loop(){
   float theta_degree=getCulculatedDeg(the_enc);
   float length_degree=getCulculatedDeg(len_enc);
 
+  if (Serial.available()){
+    String inputstring = Serial.readStringUntil('\n');
+    inputstring.trim();
+    if(inputstring.length() >0){
+      int commaIndex = inputstring.indexOf(',');
+      if(commaIndex!=-1){
+        String dx_str = inputstring.substring(0,commaIndex);
+        String dy_str = inputstring.substring(commaIndex+1);
+
+        double dx = dx_str.toFloat();
+        double dy = dy_str.toFloat();
+        
+        Serial.println("----------------------------------------");
+        Serial.print("[入力受信] dx = "); Serial.print(dx);
+        Serial.print(" , dy = "); Serial.println(dy);
+
+        Serial.println(">>> 計算成功 <<<");
+      }
+    }
+  }
+
   // シリアル出力
   Serial.print("Theta: ");   Serial.print(theta_degree);
   Serial.print("\tLength: "); Serial.println(length_degree);

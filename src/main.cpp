@@ -11,6 +11,7 @@
 #define Length 100.0    //Y軸のデフォの長さ
 #define THETA 90.0      //thetaのデフォ
 #define  pinion_circle 9.6*PI //ピニオンの円周 
+#define theta_parcent 10.0//thetaのサイズ比
 
 TwoWire I2C_1 = TwoWire(0);
 TwoWire I2C_2 = TwoWire(1);
@@ -36,8 +37,6 @@ const int length_ch =1;
 const int height_pin = 17;//z方向は360サーボ
 const int hand_pin = 18;
 
-const float alpha = 2.0;// Y軸のギア比
-const float beta = 2.0;// thetaのギア比
 
 //プルアップ抵抗をつける（4.7kΩ〜10kΩ）
 
@@ -114,7 +113,7 @@ currentState getCurrentState(){
   double current_theta_rad = current_theta * M_PI / 180.0; //radianに変換
 
   state.current_theta=current_theta_rad;
-  state.current_L= Length + alpha * totalDegree;
+  state.current_L= Length + totalDegree;//totaldegreeはradian。係数が必要
   state.current_X=state.current_L*std::cos(state.current_theta);
   state.current_Y=state.current_L*std::sin(state.current_theta);
 
@@ -146,10 +145,11 @@ calcMoved calculateIK(double dx,double dy,currentState state){
   return result;
 }
 
-
-void rawDrive(calcMoved delta,MotorDrive motor){
+//回転数を測りながら、モーターを動かす関数
+void rawDrive(calcMoved delta,MotorDrive thetaMotor,MotorDrive lengthMotor){
   double delta_outside = delta.d_theta;
-  double delta_inside = delta_outside*10.0;
+  double delta_inside = (delta_outside*theta_parcent)*4096/(2*PI);//0~4095
+  
 
   double delta_rack = delta.d_length;
   double delta_gear = delta_rack/pinion_circle;

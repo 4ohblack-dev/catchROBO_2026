@@ -9,7 +9,7 @@
 #define SDA2_pin 25
 #define SCL2_pin 32
 #define Length 100.0    //Y軸のデフォの長さ
-#define theta 90.0      //thetaのデフォ
+#define THETA 90.0      //thetaのデフォ
 
 TwoWire I2C_1 = TwoWire(0);
 TwoWire I2C_2 = TwoWire(1);
@@ -82,64 +82,67 @@ Servo height_M, hand_servo;
 struct currentState{
   double current_X;
   double current_Y;
-  double current_theta;
+  double current_theta;//radian
   double current_L;
 };
 struct calcMoved{
-  double d_theta;
+  double d_theta;//radian
   double d_length;
   bool success;
 };
 
 //今のthetaとL1を取得する関数、更新する関数
-double getCurrentState(){
+currentState getCurrentState(){
   currentState state;
   uint16_t current_theta = as5600[theta_as]->getAngle();
-  current_theta = (float)current_theta*360.0/4096.0;
+  current_theta = (float)current_theta*360.0/4096.0;//degreeに変換
 
   uint16_t current_L_angle = as5600[length_as]->getRawAngle();
   if(isfirstRead){
     lastRawAngle=current_L_angle;
     isfirstRead=false;
   }
-  uint16_t diff = (uint32_t)current_L_angle - (uint32_t)lastRawAngle;
+  uint16_t diff = (int32_t)current_L_angle - (int32_t)lastRawAngle;
   if(diff<-2048)loopCount++;
   else if (diff>2048)loopCount--;
 
   lastRawAngle=current_L_angle;
 
   uint32_t totalsteps=((int32_t)loopCount*4096) + current_L_angle;
-  float totalDegree = totalsteps*360.0/4096.0;
+  float totalDegree = totalsteps*360.0/4096.0;//degreeに変換
+  double current_theta_rad = current_theta * M_PI / 180.0; //radianに変換
 
-
-  state.current_theta=current_theta;
+  state.current_theta=current_theta_rad;
   state.current_L= Length + alpha * totalDegree;
   state.current_X=state.current_L*std::cos(state.current_theta);
   state.current_Y=state.current_L*std::sin(state.current_theta);
+
+  return state;
 }
 
 //theta,Lの差分を計算して返す関数
-calcMoved calculateIK(double dx,double dy){
+calcMoved calculateIK(double dx,double dy,currentState state){
   calcMoved result = {0.0,0.0,false};
-  currentState state;
 
   double target_X=state.current_X + dx;
   double target_Y=state.current_Y + dy;
-  double target_L=std::sqrt(state.current_X*state.current_X + state.current_Y*state.current_Y);
+  double target_L=std::sqrt(target_X*target_X + target_Y*target_Y);
 
   if(target_L<20||target_L>150){//要変更
     return result;
   }
 
   double target_theta=std::atan2(target_Y,target_X);
-  double delta_theta_deg=(target_theta-state.current_theta)*180/PI;
-  if(delta_theta_deg>90||delta_theta_deg<-90){//要変更
+  double delta_theta=(target_theta-state.current_theta);
+  if(delta_theta>PI/2||delta_theta<-PI/2){//要変更
     return result;
   }
 
-  result.d_length=target_L - std::sqrt(state.current_X*state.current_X+state.current_Y*state.current_Y);
-  result.d_theta=delta_theta_deg;
+  result.d_length=target_L - state.current_L;
+  result.d_theta=delta_theta;//radian
   result.success=true;
+
+  return result;
 }
 
 void setup(){

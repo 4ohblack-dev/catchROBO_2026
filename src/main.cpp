@@ -89,53 +89,32 @@ struct calcMoved{
   bool success;
 };
 
+double current_X=100.0;
+double current_Y=100.0;
+double current_theta=std::atan2(current_Y,current_X);
+
 //今のthetaとL1を取得する関数、更新する関数が必要
+calcMoved calculateIK(double dx,double dy){
+  calcMoved result = {0.0,0.0,false};
 
-calcMoved calcuratedy(double dy,double theta){
-  calcMoved result={0.0,0.0,false};
-  if(theta>90.0 || theta<0.0){
-    return result;//false
-  }
-  theta= theta*PI/180.0;
-  if (theta == 0.0) {
-        result.d_theta = 0.0;
-        result.d_length = 0.0;//要変更
-        result.success = true;
-        return result;//とりあえずtrue
-  }
-  result.d_theta= std::atan2((dy*std::sin(theta)),(L1 + dy*std::cos(theta)));
-  double tan1 = std::tan(result.d_theta);
-  double tan2 = std::tan(theta-result.d_theta);
+  double target_X=current_X + dx;
+  double target_Y=current_Y + dy;
+  double target_L=std::sqrt(current_X*current_X + current_Y*current_Y);
 
-  if(std::abs(tan1)<1e-6 || std::abs(tan2)<1e-6){
-    return result;//false
+  if(target_L<20||target_L>150){//要変更
+    return result;
   }
-  result.d_length=L1*(std::sin(theta)/tan1 + std::sin(theta)/tan2 -1);
-  result.success = true;
-  return result;//true,戻り値はラジアンになってる
-}
-calcMoved calcuratedY(double dy,double theta){
-  calcMoved result={0.0,0.0,false};
-  if(theta>90.0 || theta<0.0){
-    return result;//false
-  }
-  theta= theta*PI/180.0;
-  if (theta == 0.0) {
-        result.d_theta = 0.0;
-        result.d_length = 0.0;//要変更
-        result.success = true;
-        return result;//とりあえずtrue
-  }
-  result.d_theta= std::atan2((dy*std::sin(theta)),(L1 + dy*std::cos(theta)));
-  double tan1 = std::tan(result.d_theta);
-  double tan2 = std::tan(theta-result.d_theta);
 
-  if(std::abs(tan1)<1e-6 || std::abs(tan2)<1e-6){
-    return result;//false
+  double target_theta=std::atan2(target_Y,target_X);
+  double delta_theta_deg=(target_theta-current_theta)*180/PI;
+  if(delta_theta_deg>90||delta_theta_deg<-90){//要変更
+    return result;
   }
-  result.d_length=L1*(std::sin(theta)/tan1 + std::sin(theta)/tan2 -1);
-  result.success = true;
-  return result;//true,戻り値はラジアンになってる
+
+  result.d_length=target_L - std::sqrt(current_X*current_X+current_Y*current_Y);
+  result.d_theta=delta_theta_deg;
+  result.success=true;
+  
 }
 
 float getCulculatedDeg(int id){

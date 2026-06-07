@@ -91,33 +91,52 @@ struct calcMoved{
 
 //今のthetaとL1を取得する関数、更新する関数が必要
 
-double current_X = 100.0; 
-double current_Y = 0.0;
-double current_theta = std::atan2(current_Y,current_X);
-calcMoved calculateIK(double dx,double dy){
-  calcMoved result = {0.0,0.0,false};
-  double target_X = current_X + dx;
-  double target_Y = current_Y + dy;
-
-  double L_target = std::sqrt(target_X * target_X + target_Y * target_Y );
-
-  if(L_target<30.0 || L_target >400.0){
-    return result;
+calcMoved calcuratedy(double dy,double theta){
+  calcMoved result={0.0,0.0,false};
+  if(theta>90.0 || theta<0.0){
+    return result;//false
   }
-  double target_theta_rad = std::atan2(target_Y,target_X);
-  double target_theta_deg = target_theta_rad*180.0/PI;
-
-  if(target_theta_deg < -10.0 || target_theta_deg > 100.0){
-    return result;
+  theta= theta*PI/180.0;
+  if (theta == 0.0) {
+        result.d_theta = 0.0;
+        result.d_length = 0.0;//要変更
+        result.success = true;
+        return result;//とりあえずtrue
   }
+  result.d_theta= std::atan2((dy*std::sin(theta)),(L1 + dy*std::cos(theta)));
+  double tan1 = std::tan(result.d_theta);
+  double tan2 = std::tan(theta-result.d_theta);
 
-  result.d_length=L_target - sqrt(current_X*current_X + current_Y*current_Y);
-  result.d_theta=target_theta_deg - current_theta;
-  result.success=true;
-
-  return result;
+  if(std::abs(tan1)<1e-6 || std::abs(tan2)<1e-6){
+    return result;//false
+  }
+  result.d_length=L1*(std::sin(theta)/tan1 + std::sin(theta)/tan2 -1);
+  result.success = true;
+  return result;//true,戻り値はラジアンになってる
 }
+calcMoved calcuratedY(double dy,double theta){
+  calcMoved result={0.0,0.0,false};
+  if(theta>90.0 || theta<0.0){
+    return result;//false
+  }
+  theta= theta*PI/180.0;
+  if (theta == 0.0) {
+        result.d_theta = 0.0;
+        result.d_length = 0.0;//要変更
+        result.success = true;
+        return result;//とりあえずtrue
+  }
+  result.d_theta= std::atan2((dy*std::sin(theta)),(L1 + dy*std::cos(theta)));
+  double tan1 = std::tan(result.d_theta);
+  double tan2 = std::tan(theta-result.d_theta);
 
+  if(std::abs(tan1)<1e-6 || std::abs(tan2)<1e-6){
+    return result;//false
+  }
+  result.d_length=L1*(std::sin(theta)/tan1 + std::sin(theta)/tan2 -1);
+  result.success = true;
+  return result;//true,戻り値はラジアンになってる
+}
 
 float getCulculatedDeg(int id){
   uint16_t currentRawAngle = as5600[id]->getRawAngle();//連続して回るようなところ
@@ -125,7 +144,7 @@ float getCulculatedDeg(int id){
     lastRawAngle[id]=currentRawAngle;
     isfirstRead[id]=false;
   }
-  int16_t diff = (int32_t)currentRawAngle - (int32_t)lastRawAngle[id];
+  int16_t diff = currentRawAngle - lastRawAngle[id];
   if(diff<-2048)loopCount[id]++;
   else if (diff>2048)loopCount[id]--;
 

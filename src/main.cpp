@@ -10,6 +10,7 @@
 #define SCL2_pin 32
 #define Length 100.0    //Y軸のデフォの長さ
 #define THETA 90.0      //thetaのデフォ
+#define  pinion_circle 9.6*PI //ピニオンの円周 
 
 TwoWire I2C_1 = TwoWire(0);
 TwoWire I2C_2 = TwoWire(1);
@@ -145,6 +146,15 @@ calcMoved calculateIK(double dx,double dy,currentState state){
   return result;
 }
 
+
+void rawDrive(calcMoved delta,MotorDrive motor){
+  double delta_outside = delta.d_theta;
+  double delta_inside = delta_outside*10.0;
+
+  double delta_rack = delta.d_length;
+  double delta_gear = delta_rack/pinion_circle;
+}
+
 void setup(){
   Serial.begin(115200);
   I2C_1.begin(21,22,400000);
@@ -213,7 +223,6 @@ void loop(){
       }
     }
   }
-
 
   delay(5);
 }

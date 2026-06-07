@@ -8,6 +8,8 @@
 
 #define SDA2_pin 25
 #define SCL2_pin 32
+#define Length 100.0    //Y軸のデフォの長さ
+#define theta 90.0      //thetaのデフォ
 
 TwoWire I2C_1 = TwoWire(0);
 TwoWire I2C_2 = TwoWire(1);
@@ -15,15 +17,12 @@ TwoWire I2C_2 = TwoWire(1);
 Adafruit_PWMServoDriver servoDriver = Adafruit_PWMServoDriver(0x40);
 Adafruit_AS5600 theta_as5600,length_as5600;
 Adafruit_AS5600* as5600[] = { &theta_as5600, &length_as5600 };
-const int the_enc=0;
-const int len_enc=1;
-
 const int theta_as=0;
 const int length_as=1;
 
-int16_t loopCount[2] = {0, 0};
-uint16_t lastRawAngle[2] = {0, 0};
-bool isfirstRead[2] = {true, true};
+uint16_t loopCount = 0;
+double lastRawAngle = 0.0;
+bool isfirstRead = true;
 
 const int theta_pin = 13;
 const int theta_pwm = 12;
@@ -36,13 +35,10 @@ const int length_ch =1;
 const int height_pin = 17;//z方向は360サーボ
 const int hand_pin = 18;
 
+const float alpha = 2.0;// Y軸のギア比
+const float beta = 2.0;// thetaのギア比
 
 //プルアップ抵抗をつける（4.7kΩ〜10kΩ）
-
-int theta = 0;
-float L1 = 100;
-float h = 100;
-
 
 class MotorDrive{
 public:
@@ -83,55 +79,67 @@ MotorDrive theta_M{theta_pin,theta_pwm,theta_ch};
 MotorDrive length_M{length_pin,length_pwm,length_ch};
 Servo height_M, hand_servo;
 
+struct currentState{
+  double current_X;
+  double current_Y;
+  double current_theta;
+  double current_L;
+};
 struct calcMoved{
   double d_theta;
   double d_length;
   bool success;
 };
 
-double current_X=100.0;
-double current_Y=100.0;
-double current_theta=std::atan2(current_Y,current_X);
+//今のthetaとL1を取得する関数、更新する関数
+double getCurrentState(){
+  currentState state;
+  uint16_t current_theta = as5600[theta_as]->getAngle();
+  current_theta = (float)current_theta*360.0/4096.0;
 
-//今のthetaとL1を取得する関数、更新する関数が必要
+  uint16_t current_L_angle = as5600[length_as]->getRawAngle();
+  if(isfirstRead){
+    lastRawAngle=current_L_angle;
+    isfirstRead=false;
+  }
+  uint16_t diff = (uint32_t)current_L_angle - (uint32_t)lastRawAngle;
+  if(diff<-2048)loopCount++;
+  else if (diff>2048)loopCount--;
+
+  lastRawAngle=current_L_angle;
+
+  uint32_t totalsteps=((int32_t)loopCount*4096) + current_L_angle;
+  float totalDegree = totalsteps*360.0/4096.0;
+
+
+  state.current_theta=current_theta;
+  state.current_L= Length + alpha * totalDegree;
+  state.current_X=state.current_L*std::cos(state.current_theta);
+  state.current_Y=state.current_L*std::sin(state.current_theta);
+}
+
+//theta,Lの差分を計算して返す関数
 calcMoved calculateIK(double dx,double dy){
   calcMoved result = {0.0,0.0,false};
+  currentState state;
 
-  double target_X=current_X + dx;
-  double target_Y=current_Y + dy;
-  double target_L=std::sqrt(current_X*current_X + current_Y*current_Y);
+  double target_X=state.current_X + dx;
+  double target_Y=state.current_Y + dy;
+  double target_L=std::sqrt(state.current_X*state.current_X + state.current_Y*state.current_Y);
 
   if(target_L<20||target_L>150){//要変更
     return result;
   }
 
   double target_theta=std::atan2(target_Y,target_X);
-  double delta_theta_deg=(target_theta-current_theta)*180/PI;
+  double delta_theta_deg=(target_theta-state.current_theta)*180/PI;
   if(delta_theta_deg>90||delta_theta_deg<-90){//要変更
     return result;
   }
 
-  result.d_length=target_L - std::sqrt(current_X*current_X+current_Y*current_Y);
+  result.d_length=target_L - std::sqrt(state.current_X*state.current_X+state.current_Y*state.current_Y);
   result.d_theta=delta_theta_deg;
   result.success=true;
-  
-}
-
-float getCulculatedDeg(int id){
-  uint16_t currentRawAngle = as5600[id]->getRawAngle();//連続して回るようなところ
-  if(isfirstRead[id]){
-    lastRawAngle[id]=currentRawAngle;
-    isfirstRead[id]=false;
-  }
-  int16_t diff = currentRawAngle - lastRawAngle[id];
-  if(diff<-2048)loopCount[id]++;
-  else if (diff>2048)loopCount[id]--;
-
-  lastRawAngle[id]=currentRawAngle;
-
-  int32_t totalsteps=((int32_t)loopCount[id]*4096)+currentRawAngle;
-  float totalDegree = totalsteps*360.0/4096.0;
-  return totalDegree;//度数表記で返す
 }
 
 void setup(){
@@ -145,13 +153,13 @@ void setup(){
   height_M.attach(height_pin);
   hand_servo.attach(hand_pin);
 
-  if (as5600[the_enc]->begin(AS5600_DEFAULT_ADDR,&I2C_1) == false) {
+  if (as5600[theta_as]->begin(AS5600_DEFAULT_ADDR,&I2C_1) == false) {
     Serial.println("AS5600 (Theta) is not detected");
   } else {
     Serial.println("AS5600 (Theta) is detected");
   }
 
-  if (as5600[len_enc]->begin(AS5600_DEFAULT_ADDR,&I2C_2) == false) {
+  if (as5600[length_as]->begin(AS5600_DEFAULT_ADDR,&I2C_2) == false) {
     Serial.println("AS5600 (Length) is not detected");
   } else {
     Serial.println("AS5600 (Length) is detected");
@@ -181,8 +189,6 @@ void setup(){
 }
 
 void loop(){
-  float theta_degree=getCulculatedDeg(the_enc);
-  float length_degree=getCulculatedDeg(len_enc);
 
   if (Serial.available()){
     String inputstring = Serial.readStringUntil('\n');
@@ -205,9 +211,6 @@ void loop(){
     }
   }
 
-  // シリアル出力
-  Serial.print("Theta: ");   Serial.print(theta_degree);
-  Serial.print("\tLength: "); Serial.println(length_degree);
 
   delay(5);
 }

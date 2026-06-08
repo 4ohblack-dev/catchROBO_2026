@@ -153,6 +153,9 @@ void rawDrive(calcMoved delta,MotorDrive thetaMotor,MotorDrive lengthMotor){
 
   double delta_rack = delta.d_length;
   double delta_gear = delta_rack/pinion_circle;
+
+  thetaMotor.drive(10);
+  
 }
 
 void setup(){

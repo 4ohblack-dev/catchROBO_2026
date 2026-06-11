@@ -90,7 +90,7 @@ struct calcMoved{
   double d_length;
   bool success;
 };
-struct __attribute__((__packed)) DeltaData{
+struct __attribute__((packed)) DeltaData{
   float dx,dy;
 };
 
@@ -112,6 +112,18 @@ uint8_t calculateCRC(const uint8_t *data,size_t len){
   }
   return crc;
 }
+
+void sendPacket(const DeltaData& data){
+  uint8_t buffer[PACKET_SIZE];
+
+  buffer[0]=HEADER;
+
+  memcpy(&buffer,&data,DATA_SIZE);
+  buffer[PACKET_SIZE - 1]=calculateCRC(&buffer[2],DATA_SIZE);
+  Serial.write(buffer,PACKET_SIZE);
+}
+
+
 //今のthetaとL1を取得する関数、更新する関数
 currentState getCurrentState(){
   currentState state;
@@ -240,27 +252,18 @@ void setup(){
 }
 
 void loop(){
+  if(Serial.available()>= PACKET_SIZE)  {
+    if(Serial.read()==HEADER){
+      uint8_t dataBuffer[DATA_SIZE];
+      uint8_t receivedCRC;
 
-  if (Serial.available()){
-    String inputstring = Serial.readStringUntil('\n');
-    inputstring.trim();
-    if(inputstring.length() >0){
-      int commaIndex = inputstring.indexOf(',');
-      if(commaIndex!=-1){
-        String dx_str = inputstring.substring(0,commaIndex);
-        String dy_str = inputstring.substring(commaIndex+1);
+      Serial.readBytes(dataBuffer,DATA_SIZE);
+      receivedCRC =Serial.read();
 
-        double dx = dx_str.toFloat();
-        double dy = dy_str.toFloat();
-        
-        Serial.println("----------------------------------------");
-        Serial.print("[入力受信] dx = "); Serial.print(dx);
-        Serial.print(" , dy = "); Serial.println(dy);
-
-        Serial.println(">>> 計算成功 <<<");
+      if(calculateCRC(dataBuffer,DATA_SIZE)==receivedCRC){
+        DeltaData receivedData;
+        memcpy(&receivedData,dataBuffer,DATA_SIZE);
       }
     }
   }
-
-  delay(5);
 }

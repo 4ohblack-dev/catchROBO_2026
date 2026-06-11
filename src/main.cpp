@@ -92,7 +92,7 @@ struct calcMoved{
   bool success;
 };
 struct __attribute__((packed)) DeltaData{
-  float dx,dy;
+  float deltaX,deltaY;
 };
 
 const uint8_t HEADER = 0xAA;
@@ -215,7 +215,8 @@ calcMoved calculateIK(double dx,double dy,currentState state){
 */
 
 void setup(){
-  Serial.begin(115200);
+  Serial.begin(1152000);
+  Serial.setTimeout(0);
   I2C_1.begin(21, 22, 400000);
   I2C_2.begin(SDA2_pin, SCL2_pin, 400000);  
   servoDriver.begin();
@@ -262,16 +263,22 @@ void setup(){
   delay(100);
 }
 
-void loop(){
-  if(Serial.available()>= PACKET_SIZE)  {
-    if(Serial.read()==HEADER){
-      uint8_t dataBuffer[DATA_SIZE];
-      uint8_t receivedCRC;
+void loop() {
+  while (Serial.available() >= PACKET_SIZE) {
+    
+    if (Serial.peek() != HEADER) {
+      Serial.read();
+      continue;
+    }
 
-      Serial.readBytes(dataBuffer,DATA_SIZE);
-      receivedCRC =Serial.read();
+    uint8_t rawPacket[PACKET_SIZE];
+    size_t readLen = Serial.readBytes(rawPacket, PACKET_SIZE);
 
-      if(calculateCRC(dataBuffer,DATA_SIZE)==receivedCRC){
+    if (readLen == PACKET_SIZE) {
+      uint8_t *dataBuffer = &rawPacket[1];              // データの先頭ポインタ
+      uint8_t receivedCRC = rawPacket[PACKET_SIZE - 1]; // 末尾のCRC
+
+      if (calculateCRC(dataBuffer, DATA_SIZE) == receivedCRC) {
         DeltaData receivedData;
         memcpy(&receivedData, dataBuffer, DATA_SIZE);
 

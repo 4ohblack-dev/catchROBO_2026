@@ -27,16 +27,16 @@ uint16_t loopCount = 0;
 double lastRawAngle = 0.0;
 bool isfirstRead = true;
 
-const int theta_pin = 13;
-const int theta_pwm = 12;
+const int theta_pin = 18;
+const int theta_pwm = 19;
 const int theta_ch = 0;
 
-const int length_pin = 27;
-const int length_pwm = 26;
+const int length_pin = 26;
+const int length_pwm = 27;
 const int length_ch =1;
 
-const int height_pin = 17;//z方向は360サーボ
-const int hand_pin = 18;
+const int height_pin = 13;//z方向は360サーボ
+const int hand_pin = 14;
 
 
 //プルアップ抵抗をつける（4.7kΩ〜10kΩ）

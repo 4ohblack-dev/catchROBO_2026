@@ -13,8 +13,9 @@
 #define  pinion_circle 9.6*PI //ピニオンの円周 
 #define theta_parcent 10.0//thetaのサイズ比
 
-TwoWire I2C_1 = TwoWire(0);
+#define I2C_1 Wire
 TwoWire I2C_2 = TwoWire(1);
+
 
 Adafruit_PWMServoDriver servoDriver = Adafruit_PWMServoDriver(0x40);
 Adafruit_AS5600 theta_as5600,length_as5600;
@@ -96,7 +97,7 @@ struct __attribute__((packed)) DeltaData{
 
 const uint8_t HEADER = 0xAA;
 const size_t DATA_SIZE = sizeof(DeltaData);
-const size_t PACKET_SIZE = 2 + DATA_SIZE +1;
+const size_t PACKET_SIZE = 1 + DATA_SIZE +1;
 
 uint8_t calculateCRC(const uint8_t *data,size_t len){
   uint8_t crc = 0x00;
@@ -113,14 +114,22 @@ uint8_t calculateCRC(const uint8_t *data,size_t len){
   return crc;
 }
 
-void sendPacket(const DeltaData& data){
-  uint8_t buffer[PACKET_SIZE];
-
-  buffer[0]=HEADER;
-
-  memcpy(&buffer,&data,DATA_SIZE);
-  buffer[PACKET_SIZE - 1]=calculateCRC(&buffer[2],DATA_SIZE);
-  Serial.write(buffer,PACKET_SIZE);
+void sendPacket(const DeltaData& data) {
+  uint8_t buffer[10]; // ヘッダー1 + データ8 + CRC1 = 10バイト固定
+  
+  // 1. ヘッダーをセット
+  buffer[0] = 0xAA; 
+  
+  // 2. 引数の data (dx, dy) を安全にバイトキャストしてバッファの2バイト目以降にコピー
+  // コピー元を「&data」にすることで、確実に最新の数値がバッファに入ります
+  memcpy(&buffer[1], &data, 8); 
+  
+  // 3. データ部分（8バイト分）のCRCを計算して末尾（10バイト目）にセット
+  buffer[9] = calculateCRC(&buffer[1], 8); 
+  
+  // 4. PCへ10バイトを一括送信
+  Serial.write(buffer, 10);
+  Serial.flush(); // 即座に物理的な線に押し出す
 }
 
 
@@ -206,9 +215,9 @@ calcMoved calculateIK(double dx,double dy,currentState state){
 */
 
 void setup(){
-  Serial.begin(921600);
-  I2C_1.begin(21,22,400000);
-  I2C_2.begin(SDA2_pin,SCL2_pin,400000);
+  Serial.begin(115200);
+  I2C_1.begin(21, 22, 400000);
+  I2C_2.begin(SDA2_pin, SCL2_pin, 400000);  
   servoDriver.begin();
   servoDriver.setPWMFreq(50);
   theta_M.setup();
@@ -244,6 +253,8 @@ void setup(){
   }
 
   Serial.println("as5600 PERFECT");
+  Serial.print("DATA_SIZE_CHECK: "); Serial.println(sizeof(DeltaData));
+  Serial.print("PACKET_SIZE_CHECK: "); Serial.println(1 + sizeof(DeltaData) + 1);
   theta_M.drive(0);
   length_M.drive(0);
   height_M.write(90);

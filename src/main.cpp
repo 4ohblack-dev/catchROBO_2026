@@ -90,7 +90,28 @@ struct calcMoved{
   double d_length;
   bool success;
 };
+struct __attribute__((__packed)) DeltaData{
+  float dx,dy;
+};
 
+const uint8_t HEADER = 0xAA;
+const size_t DATA_SIZE = sizeof(DeltaData);
+const size_t PACKET_SIZE = 2 + DATA_SIZE +1;
+
+uint8_t calculateCRC(const uint8_t *data,size_t len){
+  uint8_t crc = 0x00;
+  for (size_t i = 0; i < len; i++) {
+    crc ^= data[i];
+    for (uint8_t j = 0; j < 8; j++) {
+      if (crc & 0x80) {
+        crc = (crc << 1) ^ 0x07; // 多項式 0x07
+      } else {
+        crc <<= 1;
+      }
+    }
+  }
+  return crc;
+}
 //今のthetaとL1を取得する関数、更新する関数
 currentState getCurrentState(){
   currentState state;
@@ -145,18 +166,32 @@ calcMoved calculateIK(double dx,double dy,currentState state){
   return result;
 }
 
-//回転数を測りながら、モーターを動かす関数
-void rawDrive(calcMoved delta,MotorDrive thetaMotor,MotorDrive lengthMotor){
-  double delta_outside = delta.d_theta;
-  double delta_inside = (delta_outside*theta_parcent)*4096/(2*PI);//0~4095
-  
+/*
+受信側
+[ 開始: loop() が回る ]
+         │
+         ▼
+ 1. バッファ量チェック (31バイト以上あるか)
+         │
+         ▼
+ 2. ヘッダーの頭出し (0xAA, 0xBB を探す)
+         │
+         ▼
+ 3. データ本体とCRCの分離読み込み
+         │
+         ▼
+ 4. 受信データからCRCを再計算して検証
+         │
+         ├──────── (エラー: 不一致) ──┐
+  (判定: 一致)                        │
+         ▼                            ▼
+ 5. 構造体への展開 (復元)         [ パケット破棄 ]
+         │                            │
+         ▼                            │
+[ 終了: ロボットのモータ制御等へ ] ◄────┘
 
-  double delta_rack = delta.d_length;
-  double delta_gear = delta_rack/pinion_circle;
 
-  thetaMotor.drive(10);
-  
-}
+*/
 
 void setup(){
   Serial.begin(115200);

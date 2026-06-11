@@ -206,7 +206,7 @@ calcMoved calculateIK(double dx,double dy,currentState state){
 */
 
 void setup(){
-  Serial.begin(115200);
+  Serial.begin(921600);
   I2C_1.begin(21,22,400000);
   I2C_2.begin(SDA2_pin,SCL2_pin,400000);
   servoDriver.begin();
@@ -262,7 +262,9 @@ void loop(){
 
       if(calculateCRC(dataBuffer,DATA_SIZE)==receivedCRC){
         DeltaData receivedData;
-        memcpy(&receivedData,dataBuffer,DATA_SIZE);
+        memcpy(&receivedData, dataBuffer, DATA_SIZE);
+
+        sendPacket(receivedData);
       }
     }
   }

@@ -92,7 +92,7 @@ struct calcMoved{
   bool success;
 };
 struct __attribute__((packed)) DeltaData{
-  float deltaX,deltaY;
+  float deltaX,deltaY,angle;
 };
 
 const uint8_t HEADER = 0xAA;
@@ -115,20 +115,20 @@ uint8_t calculateCRC(const uint8_t *data,size_t len){
 }
 
 void sendPacket(const DeltaData& data) {
-  uint8_t buffer[10]; // ヘッダー1 + データ8 + CRC1 = 10バイト固定
+  uint8_t buffer[PACKET_SIZE]; // ヘッダー1 + データ8 + CRC1 = 10バイト固定
   
   // 1. ヘッダーをセット
-  buffer[0] = 0xAA; 
+  buffer[0] = HEADER; 
   
   // 2. 引数の data (dx, dy) を安全にバイトキャストしてバッファの2バイト目以降にコピー
   // コピー元を「&data」にすることで、確実に最新の数値がバッファに入ります
-  memcpy(&buffer[1], &data, 8); 
+  memcpy(&buffer[1], &data, DATA_SIZE); 
   
   // 3. データ部分（8バイト分）のCRCを計算して末尾（10バイト目）にセット
-  buffer[9] = calculateCRC(&buffer[1], 8); 
+  buffer[9] = calculateCRC(&buffer[1], DATA_SIZE); 
   
   // 4. PCへ10バイトを一括送信
-  Serial.write(buffer, 10);
+  Serial.write(buffer, PACKET_SIZE);
   Serial.flush(); // 即座に物理的な線に押し出す
 }
 

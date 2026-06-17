@@ -268,7 +268,7 @@ void controlMotor(){
     double dy = target.y - current.current_Y;
 
     calcMoved result = calculateIK(target.x, target.y, current);
-    
+
     if(!result.success){
         theta_M.drive(0);
         length_M.drive(0);
@@ -284,6 +284,9 @@ void controlMotor(){
     int length_pwm =
         constrain((int)(Kp_length * result.d_length), -100, 100);
 
+    if(fabs(result.d_theta) < 0.01) theta_pwm = 0;
+    if(fabs(result.d_length) < 0.5) length_pwm = 0;
+    
     theta_M.drive(theta_pwm);
     length_M.drive(length_pwm);
 }

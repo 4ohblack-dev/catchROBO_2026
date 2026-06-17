@@ -183,11 +183,9 @@ currentState getCurrentState(){
 }
 
 //theta,Lの差分,目標座標を計算して返す関数
-calcMoved calculateIK(double dx,double dy,currentState state){
+calcMoved calculateIK(double target_X,double target_Y,currentState state){
   calcMoved result = {0.0,0.0,0.0,0.0,false};
 
-  double target_X=state.current_X + dx;
-  double target_Y=state.current_Y + dy;
   double target_L=std::sqrt(target_X*target_X + target_Y*target_Y);
 
   if(target_L<20||target_L>150){//要変更
@@ -269,8 +267,8 @@ void controlMotor(){
     double dx = target.x - current.current_X;
     double dy = target.y - current.current_Y;
 
-    calcMoved result = calculateIK(dx, dy, current);
-
+    calcMoved result = calculateIK(target.x, target.y, current);
+    
     if(!result.success){
         theta_M.drive(0);
         length_M.drive(0);
@@ -346,7 +344,7 @@ void setup(){
   height_M.write(90);
   hand_servo.write(90);
   delay(100);
-  currentState init =getCurrentState();
+  currentState init = getCurrentState();
   target.x = init.current_X;
   target.y = init.current_Y;
   target.z = 0.0;

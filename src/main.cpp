@@ -33,7 +33,7 @@ Adafruit_AS5600* as5600[] = { &theta_as5600, &length_as5600 };
 const int theta_as=0;
 const int length_as=1;
 
-int16_t loopCount = 0;
+int32_t loopCount = 0;
 double lastRawAngle = 0.0;
 bool isfirstRead = true;
 
@@ -105,6 +105,21 @@ struct calcMoved{
 struct __attribute__((packed)) DeltaData{
   float deltaX,deltaY,angle;
 };
+
+struct InputState{
+    bool x1;
+    bool x2;
+    bool y1;
+    bool y2;
+    bool z1;
+    bool z2;
+};
+struct TargetState{
+  double x;
+  double y;
+  double z;
+};
+TargetState target;
 
 const uint8_t HEADER = 0xAA;
 const size_t DATA_SIZE = sizeof(DeltaData);
@@ -221,58 +236,6 @@ calcMoved calculateIK(double dx,double dy,currentState state){
 */
 
 
-void move(bool x1,bool x2,bool y1,bool y2,bool z1,bool z2, currentState state){
-  double dx = 0.0;
-  double dy = 0.0;
-  double step = 1.0;
-
-  if(x1&&!x2) dx=step;
-  else if(!x1&&x2) dx = -step;
-
-  if(y1&&!y2) dy=step;
-  else if(!y1&&y2) dy=-step;
-
-  if(z1&&!z2) height_M.write(120);
-  else if(!z1&&z2) height_M.write(60);
-  else height_M.write(90);
-
-  if(dx!=0.0||dy!=0.0){
-    calcMoved result = calculateIK(dx,dy,state);
-    if(!result.success) return;
-
-    while(std::fabs(result.target_theta - state.current_theta)>0.1){
-      state=getCurrentState();
-      if((result.target_theta - state.current_theta)>0.0) theta_M.drive(10);    
-      else if((result.target_theta - state.current_theta)<0.0) theta_M.drive(-10);
-      delay(5);
-    }
-    theta_M.drive(0);
-
-    while(std::fabs(result.target_R - state.current_L)>0.1){
-      state=getCurrentState();
-      if((result.target_R - state.current_L)>0.0) length_M.drive(10);
-      else if((result.target_R - state.current_L)<0.0) length_M.drive(-10);
-      delay(5);
-    }
-    length_M.drive(0);
-  }
-}
-
-struct InputState{
-    bool x1;
-    bool x2;
-    bool y1;
-    bool y2;
-    bool z1;
-    bool z2;
-};
-struct TargetState{
-  double x;
-  double y;
-  double z;
-};
-TargetState target;
-
 InputState Readval(){
   InputState input;
   input.x1 = (digitalRead(inputpin[0])==LOW);
@@ -295,13 +258,36 @@ void updateTarget(InputState input){
   if(input.y1&&!input.y2) target.y+=step;
   else if(!input.y1&&input.y2) target.y-=step;
 
-  if(input.z1 && !input.z2) target.z += step;
-  else if(!input.z1 && input.z2) target.z -= step;
+  if(input.z1 && !input.z2) height_M.write(120);
+  else if(!input.z1 && input.z2) height_M.write(60);
+  else height_M.write(90);
 }
 
-void controllmotor(){
-  currentState current = getCurrentState();
+void controlMotor(){
+    currentState current = getCurrentState();
 
+    double dx = target.x - current.current_X;
+    double dy = target.y - current.current_Y;
+
+    calcMoved result = calculateIK(dx, dy, current);
+
+    if(!result.success){
+        theta_M.drive(0);
+        length_M.drive(0);
+        return;
+    }
+
+    double Kp_theta = 120.0;
+    double Kp_length = 5.0;
+
+    int theta_pwm =
+        constrain((int)(Kp_theta * result.d_theta), -100, 100);
+
+    int length_pwm =
+        constrain((int)(Kp_length * result.d_length), -100, 100);
+
+    theta_M.drive(theta_pwm);
+    length_M.drive(length_pwm);
 }
 
 void setup(){
@@ -320,6 +306,10 @@ void setup(){
   }
   pinMode(inputZ1,INPUT_PULLUP);
   pinMode(inputZ2,INPUT_PULLUP);
+
+  target.x=0;
+  target.y=Length;
+  target.z=0;//実際の値にする
 
   if (as5600[theta_as]->begin(AS5600_DEFAULT_ADDR,&I2C_1) == false) {
     Serial.println("AS5600 (Theta) is not detected");
@@ -356,6 +346,10 @@ void setup(){
   height_M.write(90);
   hand_servo.write(90);
   delay(100);
+  currentState init =getCurrentState();
+  target.x = init.current_X;
+  target.y = init.current_Y;
+  target.z = 0.0;
 }
 
 void loop() {
@@ -381,4 +375,8 @@ void loop() {
       }
     }
   }
+
+  InputState input = Readval();
+  updateTarget(input);
+  controlMotor();
 }

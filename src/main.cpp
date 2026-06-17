@@ -10,12 +10,22 @@
 #define SCL2_pin 32
 #define Length 100.0    //Y軸のデフォの長さ
 #define THETA 90.0      //thetaのデフォ
-#define  pinion_circle 9.6*PI //ピニオンの円周 
+#define pinion_circle 9.6*PI //ピニオンの円周 
 #define theta_parcent 10.0//thetaのサイズ比
+
+//x,yは外付け抵抗が必要
+#define inputX1 35
+#define inputX2 34
+#define inputY1 39
+#define inputY2 36
+#define inputZ1 16
+#define inputZ2 17
+
+const int inputpin[]= {inputX1,inputX2,inputY1,inputY2};
+const int NUM_pins=sizeof(inputpin)/sizeof(inputpin[0]);
 
 #define I2C_1 Wire
 TwoWire I2C_2 = TwoWire(1);
-
 
 Adafruit_PWMServoDriver servoDriver = Adafruit_PWMServoDriver(0x40);
 Adafruit_AS5600 theta_as5600,length_as5600;
@@ -23,7 +33,7 @@ Adafruit_AS5600* as5600[] = { &theta_as5600, &length_as5600 };
 const int theta_as=0;
 const int length_as=1;
 
-uint16_t loopCount = 0;
+int16_t loopCount = 0;
 double lastRawAngle = 0.0;
 bool isfirstRead = true;
 
@@ -37,7 +47,6 @@ const int length_ch =1;
 
 const int height_pin = 13;//z方向は360サーボ
 const int hand_pin = 14;
-
 
 //プルアップ抵抗をつける（4.7kΩ〜10kΩ）
 
@@ -89,6 +98,8 @@ struct currentState{
 struct calcMoved{
   double d_theta;//radian
   double d_length;
+  double target_theta;
+  double target_R;
   bool success;
 };
 struct __attribute__((packed)) DeltaData{
@@ -121,17 +132,16 @@ void sendPacket(const DeltaData& data) {
 
   memcpy(&buffer[1], &data, DATA_SIZE); 
   
-  buffer[9] = calculateCRC(&buffer[1], DATA_SIZE); 
+  buffer[PACKET_SIZE - 1] = calculateCRC(&buffer[1], DATA_SIZE); 
   
   Serial.write(buffer, PACKET_SIZE);
   Serial.flush();
 }
 
-
 //今のthetaとL1を取得する関数、更新する関数
 currentState getCurrentState(){
   currentState state;
-  uint16_t current_theta = as5600[theta_as]->getAngle();
+  double current_theta = as5600[theta_as]->getAngle();
   current_theta = (float)current_theta*360.0/4096.0;//degreeに変換
 
   uint16_t current_L_angle = as5600[length_as]->getRawAngle();
@@ -139,27 +149,27 @@ currentState getCurrentState(){
     lastRawAngle=current_L_angle;
     isfirstRead=false;
   }
-  uint16_t diff = (int32_t)current_L_angle - (int32_t)lastRawAngle;
+  int16_t diff = (int32_t)current_L_angle - (int32_t)lastRawAngle;
   if(diff<-2048)loopCount++;
   else if (diff>2048)loopCount--;
 
   lastRawAngle=current_L_angle;
 
-  uint32_t totalsteps=((int32_t)loopCount*4096) + current_L_angle;
+  int32_t totalsteps=((int32_t)loopCount*4096) + current_L_angle;
   float totalDegree = totalsteps*360.0/4096.0;//degreeに変換
   double current_theta_rad = current_theta * M_PI / 180.0; //radianに変換
 
   state.current_theta=current_theta_rad;
-  state.current_L= Length + totalDegree;//totaldegreeはradian。係数が必要
+  state.current_L= Length + totalDegree*pinion_circle/360.0;//totaldegreeはradian。係数が必要
   state.current_X=state.current_L*std::cos(state.current_theta);
   state.current_Y=state.current_L*std::sin(state.current_theta);
 
   return state;
 }
 
-//theta,Lの差分を計算して返す関数
+//theta,Lの差分,目標座標を計算して返す関数
 calcMoved calculateIK(double dx,double dy,currentState state){
-  calcMoved result = {0.0,0.0,false};
+  calcMoved result = {0.0,0.0,0.0,0.0,false};
 
   double target_X=state.current_X + dx;
   double target_Y=state.current_Y + dy;
@@ -170,13 +180,14 @@ calcMoved calculateIK(double dx,double dy,currentState state){
   }
 
   double target_theta=std::atan2(target_Y,target_X);
-  double delta_theta=(target_theta-state.current_theta);
-  if(delta_theta>PI/2||delta_theta<-PI/2){//要変更
-    return result;
-  }
+  double delta_theta = target_theta - state.current_theta;
+  while(delta_theta > PI) delta_theta -= 2*PI;
+  while(delta_theta < -PI) delta_theta += 2*PI;
 
   result.d_length=target_L - state.current_L;
   result.d_theta=delta_theta;//radian
+  result.target_R=target_L;
+  result.target_theta = target_theta;
   result.success=true;
 
   return result;
@@ -209,6 +220,90 @@ calcMoved calculateIK(double dx,double dy,currentState state){
 
 */
 
+
+void move(bool x1,bool x2,bool y1,bool y2,bool z1,bool z2, currentState state){
+  double dx = 0.0;
+  double dy = 0.0;
+  double step = 1.0;
+
+  if(x1&&!x2) dx=step;
+  else if(!x1&&x2) dx = -step;
+
+  if(y1&&!y2) dy=step;
+  else if(!y1&&y2) dy=-step;
+
+  if(z1&&!z2) height_M.write(120);
+  else if(!z1&&z2) height_M.write(60);
+  else height_M.write(90);
+
+  if(dx!=0.0||dy!=0.0){
+    calcMoved result = calculateIK(dx,dy,state);
+    if(!result.success) return;
+
+    while(std::fabs(result.target_theta - state.current_theta)>0.1){
+      state=getCurrentState();
+      if((result.target_theta - state.current_theta)>0.0) theta_M.drive(10);    
+      else if((result.target_theta - state.current_theta)<0.0) theta_M.drive(-10);
+      delay(5);
+    }
+    theta_M.drive(0);
+
+    while(std::fabs(result.target_R - state.current_L)>0.1){
+      state=getCurrentState();
+      if((result.target_R - state.current_L)>0.0) length_M.drive(10);
+      else if((result.target_R - state.current_L)<0.0) length_M.drive(-10);
+      delay(5);
+    }
+    length_M.drive(0);
+  }
+}
+
+struct InputState{
+    bool x1;
+    bool x2;
+    bool y1;
+    bool y2;
+    bool z1;
+    bool z2;
+};
+struct TargetState{
+  double x;
+  double y;
+  double z;
+};
+TargetState target;
+
+InputState Readval(){
+  InputState input;
+  input.x1 = (digitalRead(inputpin[0])==LOW);
+  input.x2 = (digitalRead(inputpin[1])==LOW);
+  input.y1 = (digitalRead(inputpin[2])==LOW);
+  input.y2 = (digitalRead(inputpin[3])==LOW);
+  input.z1 = (digitalRead(inputZ1)==LOW);
+  input.z2 = (digitalRead(inputZ2)==LOW);
+  return input;
+}
+
+void updateTarget(InputState input){
+  double dx = 0.0;
+  double dy = 0.0;
+  double step = 1.0;
+
+  if(input.x1&&!input.x2) target.x+=step;
+  else if(!input.x1&&input.x2) target.x-=step;
+
+  if(input.y1&&!input.y2) target.y+=step;
+  else if(!input.y1&&input.y2) target.y-=step;
+
+  if(input.z1 && !input.z2) target.z += step;
+  else if(!input.z1 && input.z2) target.z -= step;
+}
+
+void controllmotor(){
+  currentState current = getCurrentState();
+
+}
+
 void setup(){
   Serial.begin(1152000);
   Serial.setTimeout(0);
@@ -220,6 +315,11 @@ void setup(){
   length_M.setup();
   height_M.attach(height_pin);
   hand_servo.attach(hand_pin);
+  for(int i=0;i<NUM_pins;i++){
+    pinMode(inputpin[i],INPUT);
+  }
+  pinMode(inputZ1,INPUT_PULLUP);
+  pinMode(inputZ2,INPUT_PULLUP);
 
   if (as5600[theta_as]->begin(AS5600_DEFAULT_ADDR,&I2C_1) == false) {
     Serial.println("AS5600 (Theta) is not detected");

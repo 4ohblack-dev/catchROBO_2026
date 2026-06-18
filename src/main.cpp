@@ -18,8 +18,9 @@
 #define inputX2 34
 #define inputY1 39
 #define inputY2 36
-#define inputZ1 16
-#define inputZ2 17
+//input_pullup
+#define inputZ1 23
+#define inputZ2 33
 
 const int inputpin[]= {inputX1,inputX2,inputY1,inputY2};
 const int NUM_pins=sizeof(inputpin)/sizeof(inputpin[0]);
@@ -267,12 +268,11 @@ void updateTarget(InputState input){
   if(input.y1&&!input.y2) vy = speed;
   else if(!input.y1&&input.y2) vy = -speed;
 
-  double vt = sqrt(vx*vx + vy*vy);
-  if(vt>speed){
-    vx = vx/vt*speed;
-    vy = vy/vt*speed;
+  if(vx!=0&&vy!=0){
+    vx *= sqrt(2)/2;
+    vy *= sqrt(2)/2;    
   }
-  
+
   double nextX = target.x + vx*dt;
   double nextY = target.y + vy*dt;
   double nextL = sqrt(nextX*nextX + nextY*nextY);
@@ -280,10 +280,7 @@ void updateTarget(InputState input){
   if(nextL >= 20 && nextL <= 150){
     target.x = nextX;
     target.y = nextY;
-  } 
-
-  target.x += vx*dt;
-  target.y += vy*dt;
+  }
 
   if(input.z1 && !input.z2) height_M.write(120);
   else if(!input.z1 && input.z2) height_M.write(60);
@@ -292,9 +289,6 @@ void updateTarget(InputState input){
 
 void controlMotor(){
     currentState current = getCurrentState();
-
-    double dx = target.x - current.current_X;
-    double dy = target.y - current.current_Y;
 
     calcMoved result = calculateIK(target.x, target.y, current);
 
@@ -312,7 +306,7 @@ void controlMotor(){
 
     int length_pwm =
         constrain((int)(Kp_length * result.d_length), -100, 100);
-
+//差分角度が小さいとトルクで動かない可能性あり
     if(fabs(result.d_theta) < 0.01) theta_pwm = 0;
     if(fabs(result.d_length) < 0.5) length_pwm = 0;
     

@@ -246,9 +246,13 @@ InputState Readval(){
 }
 
 void updateTarget(InputState input){
-  static unsigned long lastTime = millis();
-
+  static unsigned long lastTime = 0;
   unsigned long now = millis();
+
+  if(lastTime==0){
+    lastTime = now;
+    return;
+  }
   double dt = (now -lastTime)/1000.0;
   lastTime = now;
 
@@ -262,6 +266,21 @@ void updateTarget(InputState input){
 
   if(input.y1&&!input.y2) vy = speed;
   else if(!input.y1&&input.y2) vy = -speed;
+
+  double vt = sqrt(vx*vx + vy*vy);
+  if(vt>speed){
+    vx = vx/vt*speed;
+    vy = vy/vt*speed;
+  }
+  
+  double nextX = target.x + vx*dt;
+  double nextY = target.y + vy*dt;
+  double nextL = sqrt(nextX*nextX + nextY*nextY);
+
+  if(nextL >= 20 && nextL <= 150){
+    target.x = nextX;
+    target.y = nextY;
+  } 
 
   target.x += vx*dt;
   target.y += vy*dt;

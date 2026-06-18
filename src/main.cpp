@@ -139,7 +139,7 @@ uint8_t calculateCRC(const uint8_t *data,size_t len){
   }
   return crc;
 }
-
+/*
 void sendPacket(const DeltaData& data) {
   uint8_t buffer[PACKET_SIZE];
   
@@ -152,7 +152,7 @@ void sendPacket(const DeltaData& data) {
   Serial.write(buffer, PACKET_SIZE);
   Serial.flush();
 }
-
+*/
 //今のthetaとL1を取得する関数、更新する関数
 currentState getCurrentState(){
   currentState state;
@@ -246,15 +246,25 @@ InputState Readval(){
 }
 
 void updateTarget(InputState input){
-  double dx = 0.0;
-  double dy = 0.0;
-  double step = 1.0;
+  static unsigned long lastTime = millis();
 
-  if(input.x1&&!input.x2) target.x+=step;
-  else if(!input.x1&&input.x2) target.x-=step;
+  unsigned long now = millis();
+  double dt = (now -lastTime)/1000.0;
+  lastTime = now;
 
-  if(input.y1&&!input.y2) target.y+=step;
-  else if(!input.y1&&input.y2) target.y-=step;
+  double speed = 30.0;
+
+  double vx = 0;
+  double vy = 0;
+
+  if(input.x1&&!input.x2) vx = speed;
+  else if(!input.x1&&input.x2) vx = -speed;
+
+  if(input.y1&&!input.y2) vy = speed;
+  else if(!input.y1&&input.y2) vy = -speed;
+
+  target.x += vx*dt;
+  target.y += vy*dt;
 
   if(input.z1 && !input.z2) height_M.write(120);
   else if(!input.z1 && input.z2) height_M.write(60);
@@ -354,7 +364,7 @@ void setup(){
 }
 
 void loop() {
-  while (Serial.available() >= PACKET_SIZE) {
+  /*while (Serial.available() >= PACKET_SIZE) {
     
     if (Serial.peek() != HEADER) {
       Serial.read();
@@ -375,7 +385,7 @@ void loop() {
         sendPacket(receivedData);
       }
     }
-  }
+  }*/
 
   InputState input = Readval();
   updateTarget(input);

@@ -140,7 +140,7 @@ uint8_t calculateCRC(const uint8_t *data,size_t len){
   }
   return crc;
 }
-/*
+
 void sendPacket(const DeltaData& data) {
   uint8_t buffer[PACKET_SIZE];
   
@@ -153,7 +153,6 @@ void sendPacket(const DeltaData& data) {
   Serial.write(buffer, PACKET_SIZE);
   Serial.flush();
 }
-*/
 //今のthetaとL1を取得する関数、更新する関数
 currentState getCurrentState(){
   currentState state;
@@ -306,7 +305,7 @@ void controlMotor(){
 
     int length_pwm =
         constrain((int)(Kp_length * result.d_length), -100, 100);
-//差分角度が小さいとトルクで動かない可能性あり
+//トルクで動かない可能性あり
     if(fabs(result.d_theta) < 0.01) theta_pwm = 0;
     if(fabs(result.d_length) < 0.5) length_pwm = 0;
     

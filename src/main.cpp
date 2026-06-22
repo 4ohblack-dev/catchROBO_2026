@@ -314,8 +314,8 @@ void controlMotor(){
 }
 
 void setup(){
-  Serial.begin(1152000);
-  Serial.setTimeout(0);
+  Serial.begin(115200);
+  Serial.setTimeout(10);
   I2C_1.begin(21, 22, 400000);
   I2C_2.begin(SDA2_pin, SCL2_pin, 400000);  
   servoDriver.begin();

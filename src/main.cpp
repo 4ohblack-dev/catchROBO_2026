@@ -12,23 +12,10 @@
 #define THETA 90.0      //thetaのデフォ
 #define pinion_circle 9.6*PI //ピニオンの円周 
 #define theta_parcent 10.0//thetaのサイズ比
-/*
-//x,yは外付け抵抗が必要
-#define inputX1 35
-#define inputX2 34
-#define inputY1 39
-#define inputY2 36
-//input_pullup
-#define inputZ1 23
-#define inputZ2 33
 
-const int inputpin[]= {inputX1,inputX2,inputY1,inputY2};
-const int NUM_pins=sizeof(inputpin)/sizeof(inputpin[0]);
-*/
 #define I2C_1 Wire
 TwoWire I2C_2 = TwoWire(1);
 
-//Adafruit_PWMServoDriver servoDriver = Adafruit_PWMServoDriver(0x40);
 Adafruit_AS5600 theta_as5600,length_as5600;
 Adafruit_AS5600* as5600[] = { &theta_as5600, &length_as5600 };
 const int theta_as=0;
@@ -48,8 +35,6 @@ const int length_ch =1;
 
 const int height_pin = 13;//z方向は360サーボ
 const int hand_pin = 14;
-
-//プルアップ抵抗をつける（4.7kΩ〜10kΩ）
 
 class MotorDrive{
 public:
@@ -233,17 +218,6 @@ calcMoved calculateIK(double target_X,double target_Y,currentState state){
 
 */
 
-/*
-InputState Readval(){
-  InputState input;
-  input.x1 = (digitalRead(inputpin[0])==LOW);
-  input.x2 = (digitalRead(inputpin[1])==LOW);
-  input.y1 = (digitalRead(inputpin[2])==LOW);
-  input.y2 = (digitalRead(inputpin[3])==LOW);
-  input.z1 = (digitalRead(inputZ1)==LOW);
-  input.z2 = (digitalRead(inputZ2)==LOW);
-  return input;
-}*/
 
 void updateTarget(InputState input){
   static unsigned long lastTime = 0;
@@ -317,18 +291,11 @@ void setup(){
   Serial.begin(115200);
   Serial.setTimeout(10);
   I2C_1.begin(21, 22, 400000);
-  I2C_2.begin(SDA2_pin, SCL2_pin, 400000);  
-  //servoDriver.begin();
-  //servoDriver.setPWMFreq(50);
+  I2C_2.begin(SDA2_pin, SCL2_pin, 400000);
   theta_M.setup();
   length_M.setup();
   height_M.attach(height_pin);
   hand_servo.attach(hand_pin);
-  //for(int i=0;i<NUM_pins;i++){
-  //  pinMode(inputpin[i],INPUT);
-  //}
-  //pinMode(inputZ1,INPUT_PULLUP);
-  //pinMode(inputZ2,INPUT_PULLUP);
 
   target.x=0;
   target.y=Length;

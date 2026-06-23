@@ -28,7 +28,7 @@ const int NUM_pins=sizeof(inputpin)/sizeof(inputpin[0]);
 #define I2C_1 Wire
 TwoWire I2C_2 = TwoWire(1);
 
-Adafruit_PWMServoDriver servoDriver = Adafruit_PWMServoDriver(0x40);
+//Adafruit_PWMServoDriver servoDriver = Adafruit_PWMServoDriver(0x40);
 Adafruit_AS5600 theta_as5600,length_as5600;
 Adafruit_AS5600* as5600[] = { &theta_as5600, &length_as5600 };
 const int theta_as=0;
@@ -318,8 +318,8 @@ void setup(){
   Serial.setTimeout(10);
   I2C_1.begin(21, 22, 400000);
   I2C_2.begin(SDA2_pin, SCL2_pin, 400000);  
-  servoDriver.begin();
-  servoDriver.setPWMFreq(50);
+  //servoDriver.begin();
+  //servoDriver.setPWMFreq(50);
   theta_M.setup();
   length_M.setup();
   height_M.attach(height_pin);

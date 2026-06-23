@@ -12,7 +12,7 @@
 #define THETA 90.0      //thetaのデフォ
 #define pinion_circle 9.6*PI //ピニオンの円周 
 #define theta_parcent 10.0//thetaのサイズ比
-
+/*
 //x,yは外付け抵抗が必要
 #define inputX1 35
 #define inputX2 34
@@ -24,7 +24,7 @@
 
 const int inputpin[]= {inputX1,inputX2,inputY1,inputY2};
 const int NUM_pins=sizeof(inputpin)/sizeof(inputpin[0]);
-
+*/
 #define I2C_1 Wire
 TwoWire I2C_2 = TwoWire(1);
 
@@ -233,7 +233,7 @@ calcMoved calculateIK(double target_X,double target_Y,currentState state){
 
 */
 
-
+/*
 InputState Readval(){
   InputState input;
   input.x1 = (digitalRead(inputpin[0])==LOW);
@@ -243,7 +243,7 @@ InputState Readval(){
   input.z1 = (digitalRead(inputZ1)==LOW);
   input.z2 = (digitalRead(inputZ2)==LOW);
   return input;
-}
+}*/
 
 void updateTarget(InputState input){
   static unsigned long lastTime = 0;
@@ -324,11 +324,11 @@ void setup(){
   length_M.setup();
   height_M.attach(height_pin);
   hand_servo.attach(hand_pin);
-  for(int i=0;i<NUM_pins;i++){
-    pinMode(inputpin[i],INPUT);
-  }
-  pinMode(inputZ1,INPUT_PULLUP);
-  pinMode(inputZ2,INPUT_PULLUP);
+  //for(int i=0;i<NUM_pins;i++){
+  //  pinMode(inputpin[i],INPUT);
+  //}
+  //pinMode(inputZ1,INPUT_PULLUP);
+  //pinMode(inputZ2,INPUT_PULLUP);
 
   target.x=0;
   target.y=Length;
@@ -399,7 +399,7 @@ void loop() {
     }
   }*/
 
-  InputState input = Readval();
-  updateTarget(input);
-  controlMotor();
+  //InputState input = Readval();
+  //updateTarget(input);
+  //controlMotor();
 }

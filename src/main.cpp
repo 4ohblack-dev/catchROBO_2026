@@ -4,7 +4,6 @@
 #include<ESP32Servo.h>
 #include<Adafruit_PWMServoDriver.h>
 #include<cmath>
-#include<iostream>
 
 #define SDA2_pin 25
 #define SCL2_pin 32
@@ -343,7 +342,8 @@ void setup(){
 }
 
 void loop() {
-  /*while (Serial.available() >= PACKET_SIZE) {
+  /*
+  while (Serial.available() >= PACKET_SIZE) {
     
     if (Serial.peek() != HEADER) {
       Serial.read();

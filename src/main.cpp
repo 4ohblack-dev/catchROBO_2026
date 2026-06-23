@@ -88,7 +88,8 @@ struct calcMoved{
   bool success;
 };
 struct __attribute__((packed)) DeltaData{
-  float deltaX,deltaY,angle;
+  float leftX,leftY,leftRO,rightX,rightY,rightRO;
+  int Left,Right,Cross,Circle,Triangle,Rectanlge;
 };
 
 struct InputState{
@@ -342,7 +343,7 @@ void setup(){
 }
 
 void loop() {
-  /*
+  
   while (Serial.available() >= PACKET_SIZE) {
     
     if (Serial.peek() != HEADER) {
@@ -360,11 +361,15 @@ void loop() {
       if (calculateCRC(dataBuffer, DATA_SIZE) == receivedCRC) {
         DeltaData receivedData;
         memcpy(&receivedData, dataBuffer, DATA_SIZE);
+        //receivedDataに構造体の順番でデータが入ってる
+
+        Serial.println("CRC OK");
 
         sendPacket(receivedData);
       }
     }
-  }*/
+  }
+
 
   //InputState input = Readval();
   //updateTarget(input);

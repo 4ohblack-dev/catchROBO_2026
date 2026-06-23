@@ -89,7 +89,10 @@ struct calcMoved{
 };
 struct __attribute__((packed)) DeltaData{
   float leftX,leftY,leftRO,rightX,rightY,rightRO;
-  int Left,Right,Cross,Circle,Triangle,Rectanlge;
+  int Left,Right;
+  int Cross,Circle,Triangle,Rectanlge;
+  //float deltaX,deltaY,Angle;
+  int State;
 };
 
 struct InputState{
